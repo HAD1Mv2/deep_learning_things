@@ -1,0 +1,23 @@
+train:
+  batch_size: 4
+  encoder_max_length: 300
+  fp16: false
+  file_path: "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/train_preprocess.tsv"
+  file_columns: {text: "Sentence", label: "Sentiment"}
+  model_checkpoint: "indobenchmark/indobert-lite-base-p1"
+  saved_model_folder: "model"
+  model_info_path: "model/model_info.txt"
+  num_epochs: 3 # num of epoch
+  num_batch_per_epoch: null
+
+test:
+  batch_size: 8
+  encoder_max_length: 300
+  fp16: false
+  file_path: "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/valid_preprocess.tsv"
+  file_columns: {text: "Sentence", label: "Sentiment"}
+  model_checkpoint: "model/best_model_rel/"
+
+predict:
+  model_checkpoint: "model/best_model_rel/"
+  batch_size: 8

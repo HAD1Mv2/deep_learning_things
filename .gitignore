@@ -1,0 +1,13 @@
+sentence_classification/model
+sentence_classification/model/id2label_pkl
+sentence_classification/model/label2id_pkl
+sentence_classification/model/model_info.txt
+sentence_classification/model/best_model_rel/config.json
+sentence_classification/model/best_model_rel/model.safetensors
+sentence_classification/test.ipynb
+token_classification/idtag
+token_classification/data
+token_classification/results
+.vscode
+sentence_classification/__pycache__
+sentence_classification/data
