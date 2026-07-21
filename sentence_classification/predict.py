@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 from transformers import pipeline
 from transformers.pipelines.pt_utils import KeyDataset
 from datasets import Dataset
-from train import read_files_for_text_classification, get_default_device
+from train import get_default_device
 
 # Set logger config
 logger = logging.getLogger("Predict")
@@ -26,8 +26,8 @@ def args_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--do_bulk", action="store_true", help="Do bulk prediction, filename required")
     parser.add_argument("--filename", type=str, default=None, help="Filename to read for bulk prediction, must be a tsv file")
-    parser.add_argument("--header", type=str, default=None, help="column name in tsv file containing text data to be predicted")
-    parser.add_argument("--outfile", type=str, help="Namefile for result in bulk prediction case")
+    parser.add_argument("--header", type=str, default=None, help="Column name in tsv file containing text data to be predicted")
+    parser.add_argument("--outfile", type=str, help="Filename for saving result in bulk prediction")
 
     args = parser.parse_args()
 
@@ -62,36 +62,28 @@ if __name__ == "__main__":
     # load pipe
     pipe = pipeline("text-classification", model=model_checkpoint, device = device)
 
-    # user_give_input = False
-    # while user_give_input != True:
-    #     do_bulk_predict = input("Are you gonna do bulk prediction ?(y/n): ")
-    #     if do_bulk_predict in ["y", "yes", "n", "no"]:
-    #         user_give_input =True
-    #     else:
-    #         print("You must answer with y/yes/n/no")
-
     if do_bulk_predict :
 
         logger.info("Start bulk prediction process")
         logger.info(f"read {filename}")
         if header is None:
-            pred_data_df = pd.read_csv(filename, sep = "\t", on_bad_lines = 'warn', header = header)
-            pred_data_df.rename(columns = {pred_data_df.columns[0]: "text"}, inplace = True)
+            predict_data_df = pd.read_csv(filename, sep = "\t", on_bad_lines = 'warn', header = header)
+            predict_data_df.rename(columns = {predict_data_df.columns[0]: "text"}, inplace = True)
         else:
-            pred_data_df = pd.read_csv(filename, sep = "\t", on_bad_lines = 'warn', header = 0)
-            pred_data_df.rename(columns = {header: "text"}, inplace = True)
-        pred_data_df = pred_data_df[["text"]]
-        test_dataset = Dataset.from_pandas(pred_data_df)
+            predict_data_df = pd.read_csv(filename, sep = "\t", on_bad_lines = 'warn', header = 0)
+            predict_data_df.rename(columns = {header: "text"}, inplace = True)
+        predict_data_df = predict_data_df[["text"]]
+        predict_dataset = Dataset.from_pandas(predict_data_df)
 
         logger.info("Begin prediction loop")
-        pred_result= []
+        predict_result= []
         print("Streaming prediction progress")
-        for out in tqdm(pipe(KeyDataset(test_dataset, "text"), batch_size=batch_size, truncation="only_first"), total = len(test_dataset)):
-            pred_result.append(out)
+        for out in tqdm(pipe(KeyDataset(predict_dataset, "text"), batch_size=batch_size, truncation="only_first"), total = len(predict_dataset)):
+            predict_result.append(out)
         logger.info("Ending prediction loop")
 
-        pred_result_df = pd.DataFrame.from_records(pred_result)
-        result_to_saved_df = pd.concat([pred_data_df, pred_result_df ], axis=1) 
+        predict_result_df = pd.DataFrame.from_records(predict_result)
+        result_to_saved_df = pd.concat([predict_data_df, predict_result_df ], axis=1) 
         logger.info(f"save predictio result to {outfile}")
         result_to_saved_df.to_csv(outfile, sep="\t", index=False)
     else:

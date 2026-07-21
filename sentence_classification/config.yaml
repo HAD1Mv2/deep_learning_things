@@ -7,8 +7,9 @@ train:
   model_checkpoint: "indobenchmark/indobert-lite-base-p1"
   saved_model_folder: "model"
   model_info_path: "model/model_info.txt"
-  num_epochs: 3 # num of epoch
+  num_epochs: 5                           # num of epoch
   num_batch_per_epoch: null
+  focal_loss: true                        # whether use focal loss in training 
 
 test:
   batch_size: 8

@@ -1,7 +1,5 @@
 import os
-import sys
 import copy
-import logging
 import yaml
 from datasets import Dataset
 import pickle
@@ -10,46 +8,14 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformers import AutoModelForSequenceClassification, BertTokenizerFast, DataCollatorWithPadding, AutoConfig
 from tqdm.auto import tqdm
-import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from typing import Any
+from utils import read_files_for_text_classification, instantiate_logger, get_default_device
+from custom_loss import WeightedMulticlassFocalLoss
 
-# Set logger config
-logger = logging.getLogger("Training")
-logger.setLevel(logging.INFO)
-
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)
-
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-console_handler.setFormatter(formatter)
-
-logger.addHandler(console_handler)
-
-
-def read_files_for_text_classification(file_path: str, text_column_name: str, label_column_name: str) -> pd.DataFrame:
-    """Read files used for train model in text classification task, must be a tsv file. The file assumed already cleaned. 
-
-    Parameters
-    ----------
-    file_path : str
-        File location.
-    text_column_name : str
-        Name of column contains input text/sentece data.
-    label_column_name : str
-        Name of column contains label data.
-
-    Returns
-    -------
-    output : pd.DataFrame
-        Pandas dataframe of the data.
-    """
-
-    data_df = pd.read_csv(file_path, sep = "\t", on_bad_lines = 'warn', header = None, names = [text_column_name, label_column_name])
-    data_df.rename(columns = {text_column_name: "text", label_column_name: "label"}, inplace = True)
-
-    return data_df
+# Instantiate logger
+logger = instantiate_logger("Training")
 
 
 def encode(example: dict[str, Any], encoder_max_len: int = 512) -> dict[str, Any]:
@@ -81,22 +47,6 @@ def encode(example: dict[str, Any], encoder_max_len: int = 512) -> dict[str, Any
     outputs = {'input_ids':input_ids, 'attention_mask': input_attention, "labels": label}
     
     return outputs
-
-
-# set get device function
-def get_default_device() -> torch.device:
-    """Pick device for training.
-
-    Returns
-    -------
-    torch.device
-        Device used for training, it will pick GPU or CPU.
-    """
-
-    if torch.cuda.is_available():
-        return torch.device('cuda')
-    else:
-        return torch.device('cpu')
 
 
 # function to get the learning rate value
@@ -283,6 +233,8 @@ if __name__ == "__main__":
     model_info_path = config["model_info_path"]
     num_epochs = config["num_epochs"]                      # num of epoch
     num_batch_per_epoch = config["num_batch_per_epoch"]    # num of batch per epoch, set it None if we want to set one full loop of train data count as one epoch    
+    focal_loss = config["focal_loss"]
+
 
     # create folder for saving model
     logger.info("Creating model folder.")
@@ -390,7 +342,12 @@ if __name__ == "__main__":
     class_weights = class_weights / class_weights.sum()
 
     # Create custom loss function and put the weights in it, so in training process we factor the class imbalance in the loss and update the model weights accordingly
-    criterion_loss = nn.CrossEntropyLoss(weight=class_weights)  # create custom loss and put it in the device
+    if focal_loss:
+        logger.info("Loss is using focal loss")
+        criterion_loss =  WeightedMulticlassFocalLoss(alpha=class_weights)
+    else:
+        logger.info("Loss is using CE loss")
+        criterion_loss = nn.CrossEntropyLoss(weight=class_weights)  # create custom loss and put it in the device
 
     # get device
     device = get_default_device()

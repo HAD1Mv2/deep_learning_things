@@ -1,25 +1,14 @@
-import logging
-import sys
 import yaml
 import pandas as pd
 from tqdm.auto import tqdm
 from transformers import pipeline
 from transformers.pipelines.pt_utils import KeyDataset
 from datasets import Dataset
-from train import read_files_for_text_classification, get_default_device
+from utils import read_files_for_text_classification, get_default_device, instantiate_logger
 from sklearn.metrics import classification_report
 
-# Set logger config
-logger = logging.getLogger("Test")
-logger.setLevel(logging.INFO)
-
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)
-
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-console_handler.setFormatter(formatter)
-
-logger.addHandler(console_handler)
+# Set logger 
+logger = instantiate_logger("Test")
 
 if __name__ == "__main__":
 
