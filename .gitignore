@@ -11,3 +11,7 @@ token_classification/results
 .vscode
 sentence_classification/__pycache__
 sentence_classification/data
+token_classification/__pycache__
+token_classification/test.ipynb
+token_classification/tensorboard-report
+token_classification/tensorboard_report
