@@ -1,0 +1,29 @@
+train:
+  folder_data_path: "data" 
+  model_checkpoint: "indobenchmark/indobert-lite-base-p1" 
+  encoder_max_len: 512
+  train_batch: 4                                  # batch size per device during training
+  eval_batch: 4                                   # batch size for evaluation
+  output_dir: './results'                         # output directory
+  eval_strategy: "epoch"
+  num_train_epochs: 5                             # total number of training epochs
+  learning_rate: 2.0e-5
+  weight_decay: 0.01                              # strength of weight decay
+  load_best_model_at_end: True                    # load the best model after the end of training
+  metric_for_best_model: 'eval_f1'
+  greater_is_better: True
+  save_total_limit: 1                             # save only one model
+  dataloader_drop_last: True
+  save_strategy: 'epoch'
+  logging_dir: "./tensorboard_report"
+  focal_loss: True                                # use focal loss in case of heavy data imbalance case
+
+test:
+  test_data_path: "data/valid_preprocess.txt"
+  model_checkpoint: "results/checkpoint-1670"     # change this value based on your saved model
+  batch_size: 4
+  encoder_max_len: 512                            # must be same value as train.encoder_max_length
+
+predict:
+  model_checkpoint: "results/checkpoint-1670"     # change this value based on your saved model
+  batch_size: 8                                   # size of batch for bulk prediction
