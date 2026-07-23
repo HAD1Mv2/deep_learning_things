@@ -42,7 +42,7 @@ if __name__ == "__main__":
         prediction_result.append(out)
     logger.info("Ending prediction loop")
 
-    logger.info(f"save predictio result to {input_args.outfile}")
+    logger.info(f"save prediction result to {input_args.outfile}")
     save_to_jsonl(prediction_result, input_args.outfile)
 
     logger.info("Done")
