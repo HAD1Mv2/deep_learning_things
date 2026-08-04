@@ -1,0 +1,26 @@
+train:
+  seed: 42                                        # random seed for data shuffle, int
+  buffer_size: 100                                # buffer size for data shuffle, int
+  learning_rate: 1.0e-5                               
+  batch_size: 4 
+  encoder_max_len: 512
+  gradient_accumulation_step: 4                   # number of steps before updating model parameters
+  num_epochs: 3                                   # number of training epoch
+  num_train_batch_per_epoch: 100                  # total data feeded into training per epoch is num_train_batch_per_epoch * batch_size
+  num_dev_batch_per_epoch: 25
+  model_checkpoint: "google/t5-efficient-mini" 
+  train_data_paths: ['data/train.01.jsonl', 'data/train.02.jsonl']
+  dev_data_paths: ['data/dev.01.jsonl', 'data/dev.02.jsonl']
+  save_trained_model_path: "Results/best_model_summarization/"
+
+test:
+  batch_size: 4
+  num_batch: 25 # number of data to predict is batch_size * num_batch
+  encoder_max_len: 512
+  test_data_paths: ['data/test.01.jsonl', 'data/test.02.jsonl']
+  model_checkpoint: "Results/best_model_summarization/"
+  outfile: "Results/test_data_prediction.jsonl"
+
+summarize:
+  encoder_max_len: 512
+  model_checkpoint: "Results/best_model_summarization/"

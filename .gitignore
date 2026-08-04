@@ -15,3 +15,5 @@ token_classification/__pycache__
 token_classification/test.ipynb
 token_classification/tensorboard-report
 token_classification/tensorboard_report
+summarization/data/
+summarization/Results
