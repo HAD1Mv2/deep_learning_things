@@ -1,0 +1,36 @@
+train:
+  train_data: 'data/train_preprocess.csv'
+  val_data: 'data/valid_preprocess.csv'
+  batch_size: 4
+  encoder_max_len: 512
+  doc_stride: 128
+  model_checkpoint: "cahya/distilbert-base-indonesian"
+  trainer_args:
+    output_dir: './results' 
+    eval_strategy : "epoch"
+    save_strategy : "epoch"
+    logging_strategy : "epoch"
+    remove_unused_columns: False 
+    learning_rate: 4.0e-6
+    num_train_epochs: 15
+    weight_decay: 0.01
+    gradient_accumulation_steps: 4
+    average_tokens_across_devices: False
+    load_best_model_at_end : True
+    metric_for_best_model : 'eval_loss'
+    save_total_limit : 1   
+
+test:
+  encoder_max_len: 512                          # old bert based models ususally have 512 as the max input token len
+  doc_stride: 128 
+  test_data: 'data/test_preprocess.csv'
+  model_checkpoint: "results/checkpoint-2340"
+  n_best_size: 20                               # max number of answers from model accepted
+  max_answer_length: 30                         # max number of tokens for answer  
+
+predict:
+  encoder_max_len: 512                          
+  doc_stride: 128 
+  model_checkpoint: "results/checkpoint-2340"
+  n_best_size: 20                             
+  max_answer_length: 30  
