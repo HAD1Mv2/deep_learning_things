@@ -1,22 +1,26 @@
 train:
   batch_size: 4
-  encoder_max_length: 300
+  encoder_max_length: 512
   fp16: false
-  file_path: "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/train_preprocess.tsv"
-  file_columns: {text: "Sentence", label: "Sentiment"}
+  learning_rate: 1.0e-5
+  gradient_accumulation_steps: 4
+  dataset:
+    train_file_path: "data/train_preprocess.tsv"            # get the data from here "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/train_preprocess.tsv"
+    dev_file_path: "data/valid_preprocess.tsv"              # get the data from here "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/valid_preprocess.tsv"
+    header_exist: false
   model_checkpoint: "indobenchmark/indobert-lite-base-p1"
   saved_model_folder: "model"
   model_info_path: "model/model_info.txt"
-  num_epochs: 5                           # num of epoch
+  num_epochs: 8                                             # num of epoch
   num_batch_per_epoch: null
-  focal_loss: true                        # whether use focal loss in training 
+  focal_loss: true                                          # whether use focal loss in training 
 
 test:
   batch_size: 8
-  encoder_max_length: 300
   fp16: false
-  file_path: "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/valid_preprocess.tsv"
-  file_columns: {text: "Sentence", label: "Sentiment"}
+  dataset:
+    test_file_path: "data/test_preprocess.tsv"              # get the data from here "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/test_preprocess.tsv"
+    header_exist: false
   model_checkpoint: "model/best_model_rel/"
 
 predict:

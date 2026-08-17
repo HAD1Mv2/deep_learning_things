@@ -1,10 +1,46 @@
 import sys
+import yaml
 import logging
 import pandas as pd
 import torch
 from logging import Logger
+from types import SimpleNamespace
 
-def read_files_for_text_classification(file_path: str, text_column_name: str, label_column_name: str) -> pd.DataFrame:
+
+def to_namespace(data):
+    if isinstance(data, dict):
+        # Recursively convert values, then wrap the dict in a SimpleNamespace 
+        return SimpleNamespace(**{k: to_namespace(v) for k, v in data.items()})
+    elif isinstance(data, list):
+        # Recursively convert items inside lists
+        return [to_namespace(item) for item in data]
+    else:
+        # Return primitive types (strings, ints, etc.) as-is
+        return data
+    
+def load_config(config_path: str, split: str) -> SimpleNamespace:
+    """Load config. 
+
+    Parameters
+    ----------
+    config_path : str
+        Config file location.
+    split : str
+        Choose one of ["train", "test", "predict"].
+    Returns
+    -------
+    SimpleNamespace
+        Dictionary like object for easy access config's key value.
+    """
+
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)[split]
+
+    config =  to_namespace(config)
+
+    return config
+
+def read_files_for_text_classification(file_path: str, header_exist: bool) -> pd.DataFrame:
     """Read files used for train model in text classification task, must be a tsv file. The file assumed already cleaned. 
 
     Parameters
@@ -22,8 +58,7 @@ def read_files_for_text_classification(file_path: str, text_column_name: str, la
         Pandas dataframe of the data.
     """
 
-    data_df = pd.read_csv(file_path, sep = "\t", on_bad_lines = 'warn', header = None, names = [text_column_name, label_column_name])
-    data_df.rename(columns = {text_column_name: "text", label_column_name: "label"}, inplace = True)
+    data_df = pd.read_csv(file_path, sep = "\t", on_bad_lines = 'warn', header = 0 if header_exist else None, names = ['text', 'label'])
 
     return data_df
 
@@ -71,3 +106,19 @@ def instantiate_logger(logger_name: str) -> Logger:
 
     return logger
 
+# function to get the learning rate value
+def get_lr(optimizer: torch.optim.Optimizer) -> float:
+    """Return the learning rate value of the optimizer
+
+    Parameters
+    ----------
+    optimizer : torch.optim.Optimizer
+        Optimizer used for backprop
+
+    Returns
+    -------
+    out : float
+        Learning rate value
+    """
+
+    return optimizer.param_groups[0]['lr']

@@ -1,10 +1,10 @@
-import yaml
+import torch
 import pandas as pd
 from tqdm.auto import tqdm
 from transformers import pipeline
 from transformers.pipelines.pt_utils import KeyDataset
 from datasets import Dataset
-from utils import read_files_for_text_classification, get_default_device, instantiate_logger
+from utils import read_files_for_text_classification, get_default_device, instantiate_logger, load_config
 from sklearn.metrics import classification_report
 
 # Set logger 
@@ -13,15 +13,7 @@ logger = instantiate_logger("Test")
 if __name__ == "__main__":
 
     logger.info("Load Config.")
-    with open("config.yaml", "r") as f:
-        config = yaml.safe_load(f)["test"]
-
-    batch_size = config["batch_size"]
-    encoder_max_length = config["encoder_max_length"]
-    fp16 = config["fp16"]
-    test_file_path = config["file_path"]
-    test_file_columns = config["file_columns"]
-    model_checkpoint = config["model_checkpoint"]
+    config = load_config("config.yaml", "test")
 
     logger.info("Preparation.")
     logger.info("load device.")
@@ -29,19 +21,19 @@ if __name__ == "__main__":
     device = get_default_device()
 
     logger.info("Load test data.")
-    test_data_df = read_files_for_text_classification(file_path=test_file_path, 
-                                                      text_column_name=test_file_columns["text"], 
-                                                      label_column_name=test_file_columns["label"]
+    test_data_df = read_files_for_text_classification(file_path=config.dataset.test_file_path, 
+                                                      header_exist=config.dataset.header_exist
                                                       )    
+    
     test_dataset = Dataset.from_pandas(test_data_df[["text", "label"]])
-
+    print(len(test_dataset))
     logger.info("Instantiate pipeline obj.")
-    pipe = pipeline("text-classification", model=model_checkpoint, device = device)
+    pipe = pipeline("text-classification", model=config.model_checkpoint, dtype=torch.float16 if config.fp16 else "auto", device = device)
 
     logger.info("Begin prediction loop")
     pred_result= []
     print("Streaming prediction progress")
-    for out in tqdm(pipe(KeyDataset(test_dataset, "text"), batch_size=batch_size, truncation="only_first"), total = len(test_dataset)):
+    for out in tqdm(pipe(KeyDataset(test_dataset, "text"), batch_size=config.batch_size, truncation="only_first"), total = len(test_dataset)):
         pred_result.append(out)
     logger.info("Ending prediction loop")
     

@@ -1,71 +1,62 @@
-import os
 import copy
-import yaml
-from datasets import Dataset
-import pickle
+import math
+import itertools
+from datasets import Dataset, load_dataset
 import torch
+import contextlib
+import evaluate
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from transformers import AutoModelForSequenceClassification, BertTokenizerFast, DataCollatorWithPadding, AutoConfig
+from transformers import AutoModelForSequenceClassification, BertTokenizerFast, DataCollatorWithPadding, AutoConfig, get_linear_schedule_with_warmup
+from accelerate import Accelerator
 from tqdm.auto import tqdm
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from typing import Any
-from utils import read_files_for_text_classification, instantiate_logger, get_default_device
+from utils import read_files_for_text_classification, instantiate_logger, load_config, get_default_device, get_lr
 from custom_loss import WeightedMulticlassFocalLoss
 
 # Instantiate logger
 logger = instantiate_logger("Training")
 
+# Load config file
+logger.info("Load Config.")
+config = load_config("config.yaml", "train")
 
-def encode(example: dict[str, Any], encoder_max_len: int = 512) -> dict[str, Any]:
-    """Encode data into tokenized format that can be accepted by HuggingFace model
 
-    Parameters
-    ----------
-    example : dict[str, Any]
-        Element of dataset.
-    encoder_max_len : int, optional
-        Maximum tokens length, by default 512.
+class SentClassificationEncoder:
+    def __init__(self, model_checkpoint, label2id, encoder_max_len: int = 512):
+        self.tokenizer = BertTokenizerFast.from_pretrained(model_checkpoint, do_lower_case=True)      # load the tokenizer
+        self.tokenizer.padding_side = "right"                                                         # setting tokenizer padding in the right side
+        self.label2id = label2id
+        self.encoder_max_len = encoder_max_len
 
-    Returns
-    -------
-    output : dict[str, Any]
-        Inputs for model to consume in the form of tokens.
-    """
-    
-    text = copy.copy(example['text'])
-    label = copy.copy(example['label'])
+    def encode(self, example: dict[str, Any]) -> dict[str, Any]:
+        """Encode data into tokenized format that can be accepted by HuggingFace model
 
-    for i in range(len(label)):
-        label[i] = label2id[label[i]]
+        Parameters
+        ----------
+        example : dict[str, Any]
+            Element of dataset.
+        encoder_max_len : int, optional
+            Maximum tokens length, by default 512.
+
+        Returns
+        -------
+        output : dict[str, Any]
+            Inputs for model to consume in the form of tokens.
+        """
         
+        texts = copy.copy(example['text'])
+        labels = copy.copy(example['label'])
 
-    encoder_inputs = tokenizer(text, is_split_into_words = False, truncation = True, max_length = encoder_max_len, return_overflowing_tokens = False)
-    input_ids = encoder_inputs['input_ids']
-    input_attention = encoder_inputs['attention_mask']
-    outputs = {'input_ids':input_ids, 'attention_mask': input_attention, "labels": label}
-    
-    return outputs
+        for i in range(len(labels)):
+            labels[i] = self.label2id[labels[i]]
+            
 
-
-# function to get the learning rate value
-def get_lr(optimizer: torch.optim.Optimizer) -> float:
-    """Return the learning rate value of the optimizer
-
-    Parameters
-    ----------
-    optimizer : torch.optim.Optimizer
-        Optimizer used for backprop
-
-    Returns
-    -------
-    out : float
-        Learning rate value
-    """
-
-    for param_group in optimizer.param_groups:
-        return param_group['lr']
+        encoder_inputs = self.tokenizer(texts, is_split_into_words = False, truncation = True, max_length = self.encoder_max_len, return_overflowing_tokens = False)
+        encoder_inputs["labels"] = labels 
+        
+        return encoder_inputs
     
 
 # function to write the information about saved(best) model, feel free to modify this function based on your need
@@ -88,233 +79,202 @@ def write_best_model_info(epoch: int, monitor_val: float, model_info_path: str):
 
 # fit function for training, it takes number of epoch, the model we want to fine tuned, train set loader, valid/dev set loader, optimizer 
 # and the metric we want to monitor as the parameters, this function monitor 'accuracy' by default 
-
-def fit(num_epochs: int, num_batch_per_epoch: int, model: AutoModelForSequenceClassification, train_loader: DataLoader, valid_loader: DataLoader, 
-        opt: torch.optim.Optimizer, saved_model_folder: str, model_info_path: str, monitor: str = 'acc', fp16: bool = False):
+def fit(model, train_loader: DataLoader, dev_loader: DataLoader, opt: torch.optim.Optimizer, scheduler, saved_model_folder: str, 
+        model_info_path: str, monitor: str = "accuracy"):
     """Training loop function
 
     Parameters
     ----------
-    num_epochs : int
-        Number of epoch.
-    num_batch_per_epoch : int
-        Number of batch per epoch.
-    model : AutoModelForSequenceClassification
+    model : _type_
         The model used in the training.
     train_loader : DataLoader
         Dataloader for train data.
-    valid_loader : DataLoader
-        Dataloader for validation data.
+    dev_loader : DataLoader
+        Dataloader for dev data.
     opt : torch.optim.Optimizer
         Optimizer used in the training process.
+    scheduler : _type_
+        Scheduler to control learning rate during training.
+    saved_model_folder : str
+        Folder location to save model.
+    model_info_path : str
+        File location to save model training info.
     monitor : str, optional
-        Metric used to monitor model performance, by default 'acc'.
-    fp16 : bool, optional
-        Using fp16 for automatic mixed precision(AMP) in training, by default False
+        Metric used to monitor model performance, options:["accuracy", "precision", "recall", "f1"], by default "accuracy".
     """
    
-    monitor_val = 0
+    # Prepare metric
+    metric_accuracy = evaluate.load("accuracy")
+    metric_f1_prec_recall = evaluate.combine([evaluate.load("f1"),
+                                              evaluate.load("precision"),
+                                              evaluate.load("recall")])
+    
     monitor_val_max = 0
+    gradient_accumulation_steps = config.gradient_accumulation_steps
+    num_epochs = config.num_epochs
 
-    for epoch in range(num_epochs):        
+    training_iterator = itertools.cycle(train_loader)
+    num_samples_in_epoch = len(train_loader)
+    remainder = num_samples_in_epoch % gradient_accumulation_steps
+    remainder = remainder if remainder != 0  else gradient_accumulation_steps
+    total_train_updates = math.ceil(num_samples_in_epoch / gradient_accumulation_steps)
+
+    for epoch in range(num_epochs):
         model.train()
-        train_loss = 0
-        list_train_true_labels = []
-        list_train_pred_label = []
+        train_updates_pbar = tqdm(range(total_train_updates))
+        total_train_loss = 0.0
+        total_train_items = 0
+        for update_step in train_updates_pbar:
+            # In order to correctly the total number of non-padded tokens on which we'll compute the cross-entropy loss
+            # we need to pre-load the full local batch - i.e the next per_device_batch_size * accumulation_steps samples
+            batch_samples = []
+            num_batches_in_step = gradient_accumulation_steps if update_step != (total_train_updates - 1) else remainder
+            for _ in range(num_batches_in_step):
+                batch_samples += [next(training_iterator)]
 
-        if num_batch_per_epoch is None:
-            num_batch_per_epoch = len(train_loader) 
+            # get local num items in batch 
+            local_num_items_in_batch = sum([(batch["labels"].ne(-100)).sum() for batch in batch_samples])
+            # to compute it correctly in a multi-device DDP training, we need to gather the total number of items in the full batch.
+            num_items_in_batches = accelerator.gather(local_num_items_in_batch).sum().item()
+            total_train_items += num_items_in_batches
 
-        train_pbar = tqdm(train_loader, leave=True, total=num_batch_per_epoch)
+            for i, batch in enumerate(batch_samples):
+                # if we perform gradient accumulation in a multi-devices set-up, we want to avoid unnecessary communications when accumulating
+                # cf: https://muellerzr.github.io/blog/gradient_accumulation.html
+                if (i < len(batch_samples) - 1 and accelerator.num_processes > 1):
+                    ctx = model.no_sync
+                else:
+                    ctx = contextlib.nullcontext
 
-        if fp16:
-            scaler = torch.amp.GradScaler(device.type)
 
-        for i, batch_data in enumerate(train_pbar):
-            input_ids, attention_mask, labels = batch_data["input_ids"], batch_data["attention_mask"], batch_data["labels"]
-            list_train_true_labels += labels.tolist()
-            input_ids = input_ids.to(device)
-            attention_mask = attention_mask.to(device)
-            labels = labels.to(device)
+                with ctx():
+                    input_ids, attention_mask, labels = batch["input_ids"], batch["attention_mask"], batch["labels"]
+                    outputs = model(input_ids = input_ids, attention_mask = attention_mask)
+
+                    # Unscaled loss sum for tracking total cross entrophy loss correctly
+                    raw_loss = criterion_loss(outputs.logits, labels)
+
+                    # We multiply by num_processes because the DDP calculates the average gradient across all devices whereas dividing by num_items_in_batch already takes into account all devices
+                    # Same reason for gradient_accumulation_steps, but this times it's Accelerate that calculate the average gradient across the accumulated steps
+                    # Scale loss for gradient step computation
+                    scaled_loss = (raw_loss * gradient_accumulation_steps * accelerator.num_processes) / num_items_in_batches
+                    accelerator.backward(scaled_loss)
+
+                    # Accumulate global raw loss (gathering unscaled losses across processes)
+                    gathered_loss = accelerator.gather(raw_loss.detach()).sum().item()
+                    total_train_loss += gathered_loss
+
+                    # Gather prediction and target across all devices for metrics
+                    preds = outputs.logits.argmax(dim=1)
+                    gathered_preds = accelerator.gather_for_metrics(preds).detach().cpu().tolist()
+                    gathered_labels = accelerator.gather_for_metrics(labels).detach().cpu().tolist()
+
+                    metric_accuracy.add_batch(predictions=gathered_preds, references=gathered_labels)
+                    metric_f1_prec_recall.add_batch(predictions=gathered_preds, references=gathered_labels)
+
+            # Sync gradients and perform optimization steps once every gradient_accumulation_steps
+            opt.step()
+            scheduler.step()
             opt.zero_grad()
 
-            if fp16:
-                with torch.amp.autocast(device_type=device.type, dtype=torch.float16):
-                    output = model(input_ids = input_ids, attention_mask = attention_mask)
-                    loss = criterion_loss(output.logits, labels)
-                scaler.scale(loss).backward()
-                scaler.step(opt)
-                scaler.update()
-            else:
-                output = model(input_ids = input_ids, attention_mask = attention_mask)
-                loss = criterion_loss(output.logits, labels)
-                loss.backward()
-                opt.step()
+            average_on_fly_loss =  total_train_loss / total_train_items
+            train_updates_pbar.set_description("(Epoch {}) TRAIN LOSS:{:.4f} LR:{:.8f}".format((epoch+1), average_on_fly_loss, get_lr(opt)))
 
-            train_loss += loss.item()
-            logits = output.logits
-            logits_labels = torch.argmax(logits, dim=1).tolist()
-            list_train_pred_label += logits_labels
-
-            train_pbar.set_description("(Epoch {}) TRAIN LOSS:{:.4f} LR:{:.8f}".format((epoch+1), train_loss/(i+1), get_lr(opt)))
-
-        acc = accuracy_score(list_train_true_labels, list_train_pred_label)
-        precision, recall, f1, _ = precision_recall_fscore_support(list_train_true_labels, list_train_pred_label, average='macro')
-        print("(Epoch {}) TRAIN LOSS:{:.4f} ACC:{:.4f} PREC:{:.4f} REC:{:.4f} F1:{:.4f} LR:{:.8f}".format((epoch+1), train_loss/(i+1), acc, precision, recall, 
-                                                                                                          f1, get_lr(optimizer)))
+        # Compute final epoch loss normalized by total item(data)
+        average_epoch_train_loss = total_train_loss/ total_train_items
+        train_metric_results = {**metric_accuracy.compute(), **metric_f1_prec_recall.compute(average = "macro")} # when we call compute(), the predictions and references are cleared
+        print("(Epoch {}) TRAIN LOSS:{:.4f} ACC:{:.4f} PREC:{:.4f} REC:{:.4f} F1:{:.4f} LR:{:.8f}".format((epoch+1), average_epoch_train_loss, train_metric_results["accuracy"], 
+                                                                                                          train_metric_results["precision"], train_metric_results["recall"], 
+                                                                                                          train_metric_results["f1"], get_lr(opt)))   
 
         model.eval()
-        pbar = tqdm(valid_loader, leave=True, total=len(valid_loader))
+        pbar = tqdm(dev_loader, leave=True, total=len(dev_loader))
         with torch.no_grad():
-            val_loss = 0
-            list_val_true_labels = []
-            list_val_pred_label = []
-            for idx, data in enumerate(pbar):
-                input_ids, attention_mask, labels = data["input_ids"], data["attention_mask"], data["labels"]
-                input_ids = input_ids.to(device)
-                attention_mask = attention_mask.to(device)
-                list_val_true_labels += labels.tolist()
-                labels = labels.to(device)
-                opt.zero_grad()
+            total_dev_loss = 0.0
+            total_dev_items = 0
+            for i, batch in enumerate(pbar):
+                input_ids, attention_mask, labels = batch["input_ids"], batch["attention_mask"], batch["labels"]
+                
+                outputs = model(input_ids = input_ids, attention_mask = attention_mask)
+                dev_loss = criterion_loss(outputs.logits, labels)
 
-                if fp16:
-                    with torch.amp.autocast(device_type=device.type, dtype=torch.float16):
-                        output = model(input_ids = input_ids, attention_mask = attention_mask)
-                        loss = criterion_loss(output.logits, labels)    
-                else:
-                    output = model(input_ids = input_ids, attention_mask = attention_mask)
-                    loss = criterion_loss(output.logits, labels)
-                    
-                logits = output.logits
-                logits_labels = torch.argmax(logits, dim=1).tolist()
-                list_val_pred_label += logits_labels
-                val_loss += loss.item()
-                pbar.set_description("(Epoch {}) VALID LOSS:{:.4f}".format((epoch+1), val_loss/(i+1)))
+                local_dev_tokens = (batch["labels"].ne(-100)).sum()
 
-        acc = accuracy_score(list_val_true_labels, list_val_pred_label)
-        precision, recall, f1, _ = precision_recall_fscore_support(list_val_true_labels, list_val_pred_label, average='macro')
-        print("(Epoch {}) VALIDLOSS:{:.4f} ACC:{:.4f} PREC:{:.4f} REC:{:.4f} F1:{:.4f} LR:{:.8f}".format((epoch+1), val_loss/(i+1), acc, precision, recall, 
-                                                                                                          f1, get_lr(optimizer)))        
-        if monitor == "acc":
-            monitor_val = acc
-        elif monitor == "precision":
-            monitor_val = precision
-        elif monitor == "recall":
-            monitor_val = recall
-        elif monitor == "f1":
-            monitor_val = f1
-        else:
-            monitor_val = acc
+                total_dev_loss += accelerator.gather_for_metrics(dev_loss).sum().item()
+                total_dev_items += accelerator.gather_for_metrics(local_dev_tokens).sum().item()
 
-        if monitor_val > monitor_val_max: 
-            monitor_val_max = monitor_val 
-            model.save_pretrained(f"{saved_model_folder}/best_model_rel/")
-            write_best_model_info(epoch+1, monitor_val, model_info_path=model_info_path)
-        else: 
-            pass
+                dev_loss_avg = total_dev_loss/total_dev_items if total_dev_items > 0 else 0.0
 
+                preds = outputs.logits.argmax(dim=1)
+                gathered_preds = accelerator.gather_for_metrics(preds).detach().cpu().tolist()
+                gathered_labels = accelerator.gather_for_metrics(labels).detach().cpu().tolist()
+
+                metric_accuracy.add_batch(predictions=gathered_preds, references=gathered_labels)
+                metric_f1_prec_recall.add_batch(predictions=gathered_preds, references=gathered_labels)
+                pbar.set_description("(Epoch {}) DEV LOSS:{:.4f}".format((epoch+1), dev_loss_avg))
+
+            average_epoch_dev_loss = total_dev_loss/total_dev_items if total_dev_items > 0 else 0.0
+            dev_metric_results = {**metric_accuracy.compute(), **metric_f1_prec_recall.compute(average = "macro")}
+            print("(Epoch {}) VALIDLOSS:{:.4f} ACC:{:.4f} PREC:{:.4f} REC:{:.4f} F1:{:.4f} LR:{:.8f}".format((epoch+1), average_epoch_dev_loss, dev_metric_results["accuracy"], 
+                                                                                                             dev_metric_results["precision"], dev_metric_results["recall"], 
+                                                                                                             dev_metric_results["f1"], get_lr(optimizer)))         
+
+            if dev_metric_results[monitor] > monitor_val_max: 
+                monitor_val_max = dev_metric_results[monitor] 
+                model.save_pretrained(f"{saved_model_folder}/best_model_rel/")
+                write_best_model_info(epoch+1, dev_metric_results[monitor], model_info_path=model_info_path)
+            else: 
+                pass
 
 
 if __name__ == "__main__":
 
-    # Load config file
-    logger.info("Load Config.")
-    with open("config.yaml", "r") as f:
-        config = yaml.safe_load(f)["train"]
+    # Load dataset
+    logger.info("Load Data")
+    data_files = {"train": config.dataset.train_file_path, 
+                  "dev": config.dataset.dev_file_path 
+                  }
 
-
-    batch_size = config["batch_size"]                      # the number of data for every batch in the training process
-    encoder_max_len = config["encoder_max_length"]         # maximum vector length for every input 
-    fp16 = config["fp16"]                                  # set mixed precision point, fp16 gives more speed if your card rtx 30 series above, if your gpu not support fp16 natively the training speed is slower
-    train_file_path = config["file_path"]
-    train_file_columns = config["file_columns"]
-    model_checkpoint = config["model_checkpoint"]
-    saved_model_folder = config["saved_model_folder"]
-    model_info_path = config["model_info_path"]
-    num_epochs = config["num_epochs"]                      # num of epoch
-    num_batch_per_epoch = config["num_batch_per_epoch"]    # num of batch per epoch, set it None if we want to set one full loop of train data count as one epoch    
-    focal_loss = config["focal_loss"]
-
-
-    # create folder for saving model
-    logger.info("Creating model folder.")
-    try: 
-        os.mkdir(saved_model_folder)
-    except FileExistsError as fee:
-        print("Folder already exist.")
-        logger.info("Folder already exists.")
-
-    # Load training data
-    logger.info("Load training data.")
-
-    train_data_df = read_files_for_text_classification(file_path=train_file_path, 
-                                                       text_column_name=train_file_columns["text"], 
-                                                       label_column_name=train_file_columns["label"]
-                                                       )
-
-    num_labels = len(train_data_df['text'].unique())
+    dataset = load_dataset('csv', data_files=data_files, sep = "\t", on_bad_lines = 'warn', header = 0 if config.dataset.header_exist else None, names = ["text", "label"])
 
     # Preprocess data
     logger.info("Preprocess data.")
 
-    # split train set to get the dev set  
-
-    train_data_df, dev_data_df= train_test_split(train_data_df, 
-                                                 test_size=0.3, 
-                                                 stratify = train_data_df.label, 
-                                                 random_state = 42
-                                                 )
-
-    # load the data into dataset object, this class from huggingface dataset library is useful to make it easier for preprocessing data
-    # and transform it into the desireable input for the model
-
-    dataset_train = Dataset.from_pandas(train_data_df[['text', 'label']])
-    dataset_dev = Dataset.from_pandas(dev_data_df[['text', 'label']])
-
-    logger.info("Loading tokenizer.")
-
-    # Load the tokenizer used to transform the sentence into the desireable input for the bert model
-
-    tokenizer = BertTokenizerFast.from_pretrained(model_checkpoint, do_lower_case=True) # load the tokenizer
-    tokenizer.padding_side = "right"                                                    # setting tokenizer padding in the right side
-
     # label map, to mapping the labels into numerical values, useful in the preprocessing data and getting the output label
-    unique_label = set(train_data_df['label'].unique())
+    unique_label = set(dataset['train']['label'])
     label2id = {tag: id for id, tag in enumerate(unique_label)}
     id2label = {id: tag for tag, id in label2id.items()}
 
-    tokenized_dataset_train = dataset_train.map(encode, 
-                                                batched = True, 
-                                                remove_columns = dataset_train.column_names)
+    logger.info("Create Encoder.")
+    encoder = SentClassificationEncoder(config.model_checkpoint, label2id)
+    tokenized_dataset = dataset.map(encoder.encode, 
+                                    batched = True, 
+                                    remove_columns = dataset['train'].column_names
+                                    )
     
-    tokenized_dataset_train.set_format(type = 'torch', 
-                                       columns = ['input_ids', 'attention_mask', 'labels'], 
-                                       output_all_columns = True)
-    
-    tokenized_dataset_dev = dataset_dev.map(encode, 
-                                            batched = True, 
-                                            remove_columns = dataset_dev.column_names)
-    
-    tokenized_dataset_dev.set_format(type = 'torch', 
-                                     columns = ['input_ids', 'attention_mask', 'labels'], 
-                                     output_all_columns=True)
+    tokenized_dataset.set_format(type = 'torch', 
+                                 columns = ['input_ids', 'attention_mask', 'labels'], 
+                                 output_all_columns = True
+                                 )
 
     # intatiate collator function, collate data into batch and padding based on the longest sequence on the batch, this way we can fine tune model faster compared
     # to padding all data into the same length 
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+    data_collator = DataCollatorWithPadding(tokenizer=encoder.tokenizer)
 
     # load dataset into dataloader, for more details about DataLoader, please check the pytorch documentation about DataLoader
-    train_dl = DataLoader(tokenized_dataset_train, 
-                          batch_size=batch_size, 
+    train_dl = DataLoader(tokenized_dataset['train'], 
+                          batch_size=config.batch_size, 
                           collate_fn=data_collator, 
                           shuffle=True
                           )
     
-    dev_dl = DataLoader(tokenized_dataset_dev, 
-                        batch_size=batch_size,   
+    dev_dl = DataLoader(tokenized_dataset['dev'], 
+                        batch_size=config.batch_size,   
                         collate_fn=data_collator, 
                         shuffle=False
                         )
+
+    num_training_step = math.ceil(len(train_dl) / config.gradient_accumulation_steps) * config.num_epochs
 
     logger.info("Preprocess end.")
 
@@ -322,47 +282,40 @@ if __name__ == "__main__":
     logger.info("Load model")
 
     # set model config
-    model_config = AutoConfig.from_pretrained(model_checkpoint,
+    model_config = AutoConfig.from_pretrained(config.model_checkpoint,
                                               _num_labels=len(unique_label),
                                               id2label=id2label,
                                               label2id=label2id,
                                               finetuning_task = "text-classification"
                                               )
 
-    model = AutoModelForSequenceClassification.from_pretrained(model_checkpoint, config=model_config)
+    model = AutoModelForSequenceClassification.from_pretrained(config.model_checkpoint, config=model_config)
 
     # calculate class weight since the data is imbalance, se will use this later for loss function so when training we give more weight in smaller class size 
-
     # Prepare training
     logger.info("Prepare for training.")
 
-    target = torch.tensor(tokenized_dataset_train['labels'])
+    target = torch.tensor(tokenized_dataset['train']['labels'])
     class_count = torch.bincount(target)
     class_weights = 1.0 / class_count
     class_weights = class_weights / class_weights.sum()
 
     # Create custom loss function and put the weights in it, so in training process we factor the class imbalance in the loss and update the model weights accordingly
-    if focal_loss:
+    if config.focal_loss:
         logger.info("Loss is using focal loss")
-        criterion_loss =  WeightedMulticlassFocalLoss(alpha=class_weights)
+        criterion_loss =  WeightedMulticlassFocalLoss(alpha=class_weights, reduction="sum")
     else:
         logger.info("Loss is using CE loss")
-        criterion_loss = nn.CrossEntropyLoss(weight=class_weights)  # create custom loss and put it in the device
+        criterion_loss = nn.CrossEntropyLoss(weight=class_weights, reduction="sum")  # create custom loss and put it in the device
 
-    # get device
-    device = get_default_device()
+    # set optimizer and scheduler
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
+    scheduler = get_linear_schedule_with_warmup(optimizer=optimizer, num_warmup_steps=50, num_training_steps=num_training_step+100) # +100 because I don't want the lr goes to 0
 
-    # set optimizer and put model, criterion loss into device
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5)
-    model = model.to(device)
-    criterion_loss = criterion_loss.to(device)
-
-    # !!! don't forget to save the label map, so that we can use it to translate the model output, we will put these into the "model" folder
-    with open(f"{saved_model_folder}/label2id_pkl", 'wb') as f1:
-        pickle.dump(label2id, f1)
-        
-    with open(f'{saved_model_folder}/id2label_pkl', 'wb') as f2:
-        pickle.dump(id2label, f2)  
+    # Set accelerator
+    accelerator = Accelerator(mixed_precision= "fp16" if config.fp16 else "no", gradient_accumulation_steps=config.gradient_accumulation_steps)
+    # load model, opt, dataloader to optimizer, optional: you can also load scheduler
+    model, optimizer, scheduler, train_dl, dev_dl = accelerator.prepare(model, optimizer, scheduler, train_dl, dev_dl)
 
     # Training
     logger.info("Begin training loop.")
@@ -370,10 +323,10 @@ if __name__ == "__main__":
     # Training loop
 
     # training and saved the best model based on f1 score
-    fit(num_epochs, num_batch_per_epoch, model, train_dl, dev_dl, optimizer, saved_model_folder=saved_model_folder, 
-        model_info_path= model_info_path, monitor='f1', fp16=fp16)
+    fit(model, train_dl, dev_dl, optimizer, scheduler, saved_model_folder=config.saved_model_folder, 
+        model_info_path= config.model_info_path, monitor='f1')
 
     # save tokenizer at the end of training process
-    tokenizer.save_pretrained(f"{saved_model_folder}/best_model_rel/")
+    encoder.tokenizer.save_pretrained(f"{config.saved_model_folder}/best_model_rel/")
 
     logger.info("Training end.")
