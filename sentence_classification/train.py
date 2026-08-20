@@ -1,7 +1,7 @@
 import copy
 import math
 import itertools
-from datasets import Dataset, load_dataset
+from datasets import load_dataset
 import torch
 import contextlib
 import evaluate
@@ -10,9 +10,8 @@ from torch.utils.data import DataLoader
 from transformers import AutoModelForSequenceClassification, BertTokenizerFast, DataCollatorWithPadding, AutoConfig, get_linear_schedule_with_warmup
 from accelerate import Accelerator
 from tqdm.auto import tqdm
-from sklearn.model_selection import train_test_split
 from typing import Any
-from utils import read_files_for_text_classification, instantiate_logger, load_config, get_default_device, get_lr
+from utils import instantiate_logger, load_config, get_lr
 from custom_loss import WeightedMulticlassFocalLoss
 
 # Instantiate logger

@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 from transformers import pipeline
 from transformers.pipelines.pt_utils import KeyDataset
 from datasets import Dataset
-from train import get_default_device
+from utils import get_default_device
 
 # Set logger config
 logger = logging.getLogger("Predict")
