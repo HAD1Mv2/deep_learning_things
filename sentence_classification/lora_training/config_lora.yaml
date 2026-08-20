@@ -1,0 +1,39 @@
+train:
+  batch_size: 4
+  encoder_max_length: 521                                                                           # use 512 for old Bert base model, 8192 for ModernBERT
+  fp16: false
+  learning_rate: 2.0e-4
+  gradient_accumulation_steps: 4
+  dataset:
+    train_file_path: "../data/train_preprocess.tsv"                                                 # get the data from here "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/train_preprocess.tsv"
+    dev_file_path: "../data/valid_preprocess.tsv"                                                   # get the data from here "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/valid_preprocess.tsv"
+    header_exist: false
+  base_model_checkpoint: "indobenchmark/indobert-base-p1"                                           # for Albert "indobenchmark/indobert-lite-base-p1", moderbert 
+  base_model_save_path: "base_models/base_model_indo_bert"
+  adapter_save_path: "adapter_lora/adapter_indobert_text_classification"
+  adapter_info_path: "adapter_lora/adapter_indobert_text_classification/adapter_lora_info.txt"      # file for putting all data or information you want to collect during training
+  num_epochs: 8                                                                                     # num of epoch
+  num_batch_per_epoch: null
+  focal_loss: true
+  lora_config:
+    init_lora_weights: "gaussian"
+    r: 16
+    lora_alpha: 32
+    target_modules: ['query', 'value']                                                              # for old BERT, ALbert base model use ['query', 'value'], ModernBERT ['Wqkv','Wo'], check model modules to get the module's name
+    lora_dropout: 0.1
+    bias: "none"      
+
+test:
+  batch_size: 8
+  fp16: false
+  dataset:
+    test_file_path: "../data/test_preprocess.tsv"                                                   # get the data from here "https://raw.githubusercontent.com/indobenchmark/indonlu/master/dataset/smsa_doc-sentiment-prosa/test_preprocess.tsv"
+    header_exist: false
+  base_model_checkpoint: "base_models/base_model_indo_bert"
+  adapter_path: "adapter_lora/adapter_indobert_text_classification"
+
+merge_model_lora:
+  base_model_checkpoint: "base_models/base_model_indo_bert"
+  adapter_path: "adapter_lora/adapter_indobert_text_classification"
+  merge_model_save_path: "merged_models/indobert-base-p1-smsa_classifier"
+
