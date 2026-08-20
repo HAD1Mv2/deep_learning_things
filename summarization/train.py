@@ -58,16 +58,20 @@ def fit(num_epochs, num_train_batch_per_epoch, num_dev_batch_per_epoch, gradient
                 with ctx():
                     input_ids, attention_mask, labels = batch["input_ids"], batch["attention_mask"], batch["labels"]
                     outputs = model(input_ids = input_ids, attention_mask = attention_mask, labels = labels)
-                    loss = loss_function(outputs.logits.view(-1, outputs.logits.size(-1)), labels.view(-1))
+                    raw_loss = loss_function(outputs.logits.view(-1, outputs.logits.size(-1)), labels.view(-1))
 
-                    loss = (loss * gradient_accumulation_step * accelerator.num_processes) / num_items_in_batches
+                    scaled_loss = (raw_loss * gradient_accumulation_step * accelerator.num_processes) / num_items_in_batches
 
-                    accelerator.backward(loss)
+                    accelerator.backward(scaled_loss)
+
+                    # Accumulate global raw loss (gathering unscaled losses across processes)
+                    gathered_loss = accelerator.gather(raw_loss.detach()).sum().item()
+                    total_train_loss += gathered_loss                    
+
 
             opt.step()
             opt.zero_grad()
 
-            total_train_loss += (loss*num_items_in_batches)
             total_train_tokens += num_items_in_batches
             global_train_loss_avg = total_train_loss/total_train_tokens if total_train_tokens>0 else 0.0
             train_updates_pbar.set_description("(Epoch {}) TRAIN LOSS:{:.4f} LR:{:.8f}".format((epoch+1), global_train_loss_avg, get_lr(opt)))
