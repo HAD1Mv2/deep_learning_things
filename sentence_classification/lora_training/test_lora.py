@@ -6,10 +6,10 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import torch
 import pandas as pd
 from tqdm.auto import tqdm
-from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer, AutoConfig
+from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
 from transformers.pipelines.pt_utils import KeyDataset
 from datasets import Dataset
-from peft import PeftModel, AutoPeftModelForSequenceClassification
+from peft import PeftModel
 from utils import read_files_for_text_classification, get_default_device, instantiate_logger, load_config
 from sklearn.metrics import classification_report
 
