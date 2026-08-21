@@ -43,6 +43,17 @@ def get_default_device():
         return torch.device('cpu')
 
     
+def to_namespace(data):
+    if isinstance(data, dict):
+        # Recursively convert values, then wrap the dict in a SimpleNamespace 
+        return SimpleNamespace(**{k: to_namespace(v) for k, v in data.items()})
+    elif isinstance(data, list):
+        # Recursively convert items inside lists
+        return [to_namespace(item) for item in data]
+    else:
+        # Return primitive types (strings, ints, etc.) as-is
+        return data
+    
 def load_config(config_path: str, split: str) -> SimpleNamespace:
     """Load config. 
 
@@ -61,7 +72,7 @@ def load_config(config_path: str, split: str) -> SimpleNamespace:
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)[split]
 
-    config =  SimpleNamespace(**config)
+    config =  to_namespace(config)
 
     return config
 
