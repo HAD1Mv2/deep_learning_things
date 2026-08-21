@@ -18,7 +18,6 @@ summarization/data/
 summarization/Results
 summarization/__pycache__
 summarization/__pycache__/utils.cpython-310.pyc
-
 summarization/lora_training/adapters
 summarization/lora_training/base_models
 summarization/lora_training/merged_models
@@ -27,4 +26,3 @@ qa_machine/results
 qa_machine/test.ipynb
 qa_machine/__pycache__
 qa_machine/example_io/answers.jsonl
-
