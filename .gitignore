@@ -25,6 +25,9 @@ summarization/lora_training/base_models
 summarization/lora_training/merged_models
 qa_machine/data
 qa_machine/results
+qa_machine/base_models
+qa_machine/merged_models
+qa_machine/tensorboard_report
 qa_machine/test.ipynb
 qa_machine/__pycache__
 qa_machine/example_io/answers.jsonl

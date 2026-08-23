@@ -1,7 +1,9 @@
+import os
 import copy
 from datasets import load_dataset
-from transformers import AutoTokenizer, AutoModelForQuestionAnswering, TrainingArguments, Trainer, EarlyStoppingCallback
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering, AutoConfig, TrainingArguments, Trainer, EarlyStoppingCallback
 from transformers import DataCollatorWithPadding
+from peft import LoraConfig, get_peft_model, TaskType
 import numpy as np
 from utils import instantiate_logger, load_config
 
@@ -11,8 +13,10 @@ logger = instantiate_logger("Training")
 logger.info("Load Train Config")
 config = load_config("config.yaml", "train")
 
+os.environ["TENSORBOARD_LOGGING_DIR"] = config.tensorboard_logging_dir
+
 # load tokenizer
-tokenizer = AutoTokenizer.from_pretrained(config.model_checkpoint)
+tokenizer = AutoTokenizer.from_pretrained(config.base_model_checkpoint)
 
 # encode function for encoding data
 def encode(example, encoder_max_len=config.encoder_max_len):
@@ -95,6 +99,43 @@ def encode(example, encoder_max_len=config.encoder_max_len):
     return outputs
 
 
+def save_base_model_and_wrap_with_peft(base_model, tokenizer, config):
+    """Function to save base model and tokenizer following by creating peft model for LoRA training
+
+    Parameters
+    ----------
+    base_model : _type_
+        base model used for fine tuning. 
+    tokenizer : _type_
+        tokenizer of base model.
+    config : _type_
+        training config containing lora config.
+
+    Returns
+    -------
+    out
+       peft model that will be passed to Trainer. 
+    """
+    # save base model and tokenizer in one folder
+    base_model.save_pretrained(config.base_model_save_path)
+    tokenizer.save_pretrained(config.base_model_save_path)
+
+    # Set LoRA config
+    lora_config = LoraConfig(init_lora_weights=config.lora_config.init_lora_weights,
+                             r=config.lora_config.r,
+                             lora_alpha=config.lora_config.lora_alpha,
+                             target_modules=config.lora_config.target_modules,
+                             lora_dropout=config.lora_config.lora_dropout,
+                             bias=config.lora_config.bias,
+                             task_type=TaskType.QUESTION_ANS
+                             )
+    
+    model = get_peft_model(base_model, lora_config)
+    model.print_trainable_parameters()
+
+    return model
+
+
 if __name__ == "__main__":
 
     logger.info("Prepare dataset")
@@ -106,7 +147,20 @@ if __name__ == "__main__":
     dataset.set_transform(encode)
 
     logger.info("Training Preparation")
-    model = AutoModelForQuestionAnswering.from_pretrained(config.model_checkpoint)
+    if config.base_model_checkpoint in ["indobenchmark/indobert-base-p1", "indobenchmark/indobert-base-p2"]:
+        # we need to overide the model config, because indobert-base model when loaded using AutoModelForQuestionAnswering, 
+        # instead of creating 2 heads in the output layer, they create 5 heads. 
+        model_config = AutoConfig.from_pretrained(config.base_model_checkpoint,
+                                                  num_labels=2,
+                                                  finetuning_task = "question answering"
+                                                  )
+        model = AutoModelForQuestionAnswering.from_pretrained(config.base_model_checkpoint, config = model_config)
+    else:
+        model = AutoModelForQuestionAnswering.from_pretrained(config.base_model_checkpoint)
+
+    if config.lora_enable:
+        logger.info("Save base model, tokenizer and create peft model")
+        model = save_base_model_and_wrap_with_peft(model, tokenizer, config)
 
     # set config argument for Trainer object
     args = TrainingArguments(
@@ -116,22 +170,23 @@ if __name__ == "__main__":
                             logging_strategy = config.trainer_args.logging_strategy, 
                             remove_unused_columns= config.trainer_args.remove_unused_columns,  
                             learning_rate= config.trainer_args.learning_rate,
-                            per_device_train_batch_size= config.batch_size,
-                            per_device_eval_batch_size= config.batch_size,
+                            per_device_train_batch_size= config.trainer_args.per_device_train_batch_size,
+                            per_device_eval_batch_size= config.trainer_args.per_device_eval_batch_size,
                             num_train_epochs= config.trainer_args.num_train_epochs,
                             weight_decay= config.trainer_args.weight_decay,
                             gradient_accumulation_steps= config.trainer_args.gradient_accumulation_steps,
                             average_tokens_across_devices= config.trainer_args.average_tokens_across_devices,
                             load_best_model_at_end = config.trainer_args.load_best_model_at_end,
                             metric_for_best_model = config.trainer_args.metric_for_best_model,
-                            save_total_limit = config.trainer_args.save_total_limit,    
+                            save_total_limit = config.trainer_args.save_total_limit,   
+                            report_to = config.trainer_args.report_to
                             )
 
     # set data collator
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     #set callback
-    eos_callback = EarlyStoppingCallback(early_stopping_patience=3)
+    es_callback = EarlyStoppingCallback(early_stopping_patience=3)
     # create Trainer object
     trainer = Trainer(
                     model,
@@ -139,7 +194,7 @@ if __name__ == "__main__":
                     train_dataset=dataset["train"],
                     eval_dataset=dataset["val"],
                     data_collator=data_collator,
-                    callbacks=[eos_callback]
+                    callbacks=[es_callback]
                     )
 
     logger.info("Begin Training")

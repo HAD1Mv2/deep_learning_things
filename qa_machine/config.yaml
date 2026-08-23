@@ -1,17 +1,20 @@
 train:
   train_data: 'data/train_preprocess.csv'
   val_data: 'data/valid_preprocess.csv'
-  batch_size: 4
   encoder_max_len: 512
   doc_stride: 128
-  model_checkpoint: "cahya/distilbert-base-indonesian"
+  base_model_checkpoint: "indobenchmark/indobert-base-p1"
+  base_model_save_path: "base_models/indobenchmark_indobert-base-p1" 
+  tensorboard_logging_dir: "./tensorboard_report"
   trainer_args:
-    output_dir: './results' 
+    per_device_train_batch_size: 4
+    per_device_eval_batch_size: 4
+    output_dir: './results/adapter_lora/indobert-base-p1'  
     eval_strategy : "epoch"
     save_strategy : "epoch"
     logging_strategy : "epoch"
-    remove_unused_columns: False 
-    learning_rate: 4.0e-6
+    remove_unused_columns: False
+    learning_rate: 1.5e-4
     num_train_epochs: 15
     weight_decay: 0.01
     gradient_accumulation_steps: 4
@@ -19,18 +22,32 @@ train:
     load_best_model_at_end : True
     metric_for_best_model : 'eval_loss'
     save_total_limit : 1   
+    report_to: "tensorboard"
+  lora_enable: True                                                             # when training without lora enabled, use small base model like distilbert
+  lora_config:
+    init_lora_weights: "gaussian"
+    r: 8
+    lora_alpha: 16
+    target_modules: ['query', 'value']                                          # for old BERT, ALbert base model use ['query', 'value'], ModernBERT ['Wqkv','Wo'], distilbert use ['q_lin', 'v_lin', 'qa_outputs']check model modules to get the module's name
+    lora_dropout: 0.1
+    bias: "none"  
 
 test:
-  encoder_max_len: 512                          # old bert based models ususally have 512 as the max input token len
+  encoder_max_len: 512                                                          # old bert based models ususally have 512 as the max input token len
   doc_stride: 128 
   test_data: 'data/test_preprocess.csv'
-  model_checkpoint: "results/checkpoint-2340"
-  n_best_size: 20                               # max number of answers from model accepted
-  max_answer_length: 30                         # max number of tokens for answer  
+  model_checkpoint: "merged_models/indobert-base-p1-qa_machine"
+  n_best_size: 20                                                               # max number of answers from model accepted
+  max_answer_length: 30                                                         # max number of tokens for answer  
+
+merge_model_lora:
+  base_model_checkpoint: "base_models/indobenchmark_indobert-base-p1"                  # use base_model_save_path
+  adapter_path: './results/adapter_lora/indobert-base-p1/checkpoint-1872'  
+  merge_model_save_path: "merged_models/indobert-base-p1-qa_machine"
 
 predict:
   encoder_max_len: 512                          
   doc_stride: 128 
-  model_checkpoint: "results/checkpoint-2340"
+  model_checkpoint: "merged_models/indobert-base-p1-qa_machine"
   n_best_size: 20                             
   max_answer_length: 30  
