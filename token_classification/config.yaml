@@ -1,29 +1,49 @@
 train:
-  folder_data_path: "data" 
-  model_checkpoint: "indobenchmark/indobert-lite-base-p1" 
+  train_data_path: "data/train_preprocess.txt"                                  # get the data from https://github.com/IndoNLP/indonlu/tree/master/dataset/nergrit_ner-grit
+  valid_data_path: "data/valid_preprocess.txt" 
+  base_model_checkpoint: "indobenchmark/indobert-base-p1"                     
+  base_model_save_path: "base_models/base_model_indo_bert_p1"                   # save base model, if we enable Lora
   encoder_max_len: 512
-  train_batch: 4                                  # batch size per device during training
-  eval_batch: 4                                   # batch size for evaluation
-  output_dir: './results'                         # output directory
-  eval_strategy: "epoch"
-  num_train_epochs: 5                             # total number of training epochs
-  learning_rate: 2.0e-5
-  weight_decay: 0.01                              # strength of weight decay
-  load_best_model_at_end: True                    # load the best model after the end of training
-  metric_for_best_model: 'eval_f1'
-  greater_is_better: True
-  save_total_limit: 1                             # save only one model
-  dataloader_drop_last: True
-  save_strategy: 'epoch'
-  logging_dir: "./tensorboard_report"
-  focal_loss: True                                # use focal loss in case of heavy data imbalance case
-
+  train_batch: 4                                                                # batch size per device during training
+  eval_batch: 4                                                                 # batch size for evaluation
+  focal_loss: True                                                              # use focal loss in case of heavy data imbalance case
+  lora_enable: True
+  tensorboard_logging_dir: "./tensorboard_report"
+  trainer_args:
+    gradient_accumulation_steps: 4
+    average_tokens_across_devices: True
+    output_dir: './results/adapter_lora'                                        # output directory, if LoRA enabled it will save adapter weights
+    eval_strategy: "epoch"
+    save_strategy: 'epoch'
+    num_train_epochs: 15                                                        # total number of training epochs
+    learning_rate: 2.0e-4                                                       # use lr ~ e-5 for full params fine tune, use larger lr, for example ~ e-4 for LoRA
+    weight_decay: 0.01                                                          # strength of weight decay
+    load_best_model_at_end: True                                                # load the best model after the end of training
+    metric_for_best_model: 'eval_f1'
+    greater_is_better: True
+    save_total_limit: 1                                                         # save only one model
+    dataloader_drop_last: False
+    logging_strategy : "epoch"
+    remove_unused_columns: False 
+  lora_config:
+    init_lora_weights: "gaussian"
+    r: 8
+    lora_alpha: 16
+    target_modules: ['query', 'value']                                          # for old BERT, ALbert base model use ['query', 'value'], ModernBERT ['Wqkv','Wo'], check model modules to get the module's name
+    lora_dropout: 0.1
+    bias: "none"  
+                                 
 test:
-  test_data_path: "data/valid_preprocess.txt"
-  model_checkpoint: "results/checkpoint-1670"     # change this value based on your saved model
+  test_data_path: "data/test_preprocess.txt"
+  model_checkpoint: "merged_models/indobert-base-p1-nergrit_classifier"         # change this value based on your saved model, if you want test model resulted from lora fine tuning, use merged model
   batch_size: 4
-  encoder_max_len: 512                            # must be same value as train.encoder_max_length
+  encoder_max_len: 512                                                          # must be same value as train.encoder_max_length
+
+merge_model_lora:
+  base_model_checkpoint: "base_models/base_model_indo_bert_p1"                  # use base_model_save_path
+  adapter_path: "results/adapter_lora/checkpoint-1050"
+  merge_model_save_path: "merged_models/indobert-base-p1-nergrit_classifier"
 
 predict:
-  model_checkpoint: "results/checkpoint-1670"     # change this value based on your saved model
-  batch_size: 8                                   # size of batch for bulk prediction
+  model_checkpoint: "results/checkpoint-1670"                                   # change this value based on your saved model
+  batch_size: 8                                                                 # size of batch for bulk prediction

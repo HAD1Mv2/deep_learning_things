@@ -6,7 +6,8 @@ Run:
 python init_workdir.py
 ```
 
-Set config in `config.yaml`
+Set config in `config.yaml`. 
+To conduct LoRA training, in `config.yaml` set `lora_enable=True` and fill lora donfiguration.
 
 - For training model, in terminal run:
 

@@ -10,6 +10,8 @@ sentence_classification/lora_training/merged_models
 token_classification/idtag
 token_classification/data
 token_classification/results
+token_classification/base_models
+token_classification/merged_models
 token_classification/__pycache__
 token_classification/test.ipynb
 token_classification/tensorboard-report

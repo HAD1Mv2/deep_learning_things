@@ -3,7 +3,8 @@ import os
 import evaluate 
 import pickle
 import torch
-from transformers import AutoModelForTokenClassification, BertTokenizerFast, TrainingArguments, Trainer, DataCollatorForTokenClassification, AutoConfig
+from transformers import AutoModelForTokenClassification, AutoTokenizer, TrainingArguments, Trainer, DataCollatorForTokenClassification, AutoConfig
+from peft import LoraConfig, get_peft_model, TaskType
 from sklearn.model_selection import train_test_split
 from utils import read_wnut, instantiate_logger, load_config, calculate_class_weights
 from transformers.tokenization_utils_base import BatchEncoding
@@ -14,7 +15,7 @@ logger = instantiate_logger("Token Class Training")
 logger.info("load config")
 config =  load_config("config.yaml", "train")
 
-os.environ["TENSORBOARD_LOGGING_DIR"] = config.logging_dir
+os.environ["TENSORBOARD_LOGGING_DIR"] = config.tensorboard_logging_dir
 
 
 class WNUTDataset(torch.utils.data.Dataset):
@@ -82,15 +83,50 @@ def compute_metrics(p):
     }
 
 
+def save_base_model_and_wrap_with_peft(base_model, tokenizer, config):
+    """Function to save base model and tokenizer following by creating peft model for LoRA training
+
+    Parameters
+    ----------
+    base_model : _type_
+        base model used for fine tuning. 
+    tokenizer : _type_
+        tokenizer of base model.
+    config : _type_
+        training config containing lora config.
+
+    Returns
+    -------
+    out
+       peft model that will be passed to Trainer. 
+    """
+    # save base model and tokenizer in one folder
+    base_model.save_pretrained(config.base_model_save_path)
+    tokenizer.save_pretrained(config.base_model_save_path)
+
+    # Set LoRA config
+    lora_config = LoraConfig(init_lora_weights=config.lora_config.init_lora_weights,
+                             r=config.lora_config.r,
+                             lora_alpha=config.lora_config.lora_alpha,
+                             target_modules=config.lora_config.target_modules,
+                             lora_dropout=config.lora_config.lora_dropout,
+                             bias=config.lora_config.bias,
+                             task_type=TaskType.TOKEN_CLS
+                             )
+    
+    model = get_peft_model(base_model, lora_config)
+    model.print_trainable_parameters()
+
+    return model
+
+
+
 if __name__ == "__main__":
 
     # read data
     logger.info("read training data")
-    train_texts, train_tags = read_wnut(f'{config.folder_data_path}/train_preprocess.txt')
-
-    # train val split
-    logger.info("preprocess training data")
-    train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=0.2, random_state=42)
+    train_texts, train_tags = read_wnut(f'{config.train_data_path}')
+    val_texts, val_tags = read_wnut(f'{config.valid_data_path}')
 
     # get unique tags, map tag to id and vice versa 
     unique_tags = set(tag for doc in train_tags + val_tags for tag in doc)
@@ -109,7 +145,7 @@ if __name__ == "__main__":
 
     # load tokenizer
     logger.info("load tokenizer")
-    tokenizer = BertTokenizerFast.from_pretrained(config.model_checkpoint, do_lower_case=True, max_length = config.encoder_max_len)
+    tokenizer = AutoTokenizer.from_pretrained(config.base_model_checkpoint, do_lower_case=True, max_length = config.encoder_max_len)
     logger.info("load tokenizer done!")
 
     logger.info("begin encoding data")
@@ -137,31 +173,39 @@ if __name__ == "__main__":
     logging_steps = int(np.floor(len(train_texts)/config.train_batch)) # train loss is logged every epoch
 
     training_args = TrainingArguments(
-        output_dir= config.output_dir,             # output directory
-        eval_strategy = config.eval_strategy ,
-        num_train_epochs = config.num_train_epochs,               # total number of training epochs
-        learning_rate = config.learning_rate,
+        output_dir= config.trainer_args.output_dir,             # output directory
+        eval_strategy = config.trainer_args.eval_strategy ,
+        num_train_epochs = config.trainer_args.num_train_epochs,               # total number of training epochs
+        learning_rate = config.trainer_args.learning_rate,
         per_device_train_batch_size = config.train_batch,  
-        per_device_eval_batch_size = config.eval_batch,   
-        weight_decay = config.weight_decay,                # strength of weight decay
-        logging_steps= logging_steps,
-        load_best_model_at_end = config.load_best_model_at_end,      # load the best model after the end of training
-        metric_for_best_model = config.metric_for_best_model,
-        greater_is_better = config.greater_is_better,
-        save_total_limit = config.save_total_limit,               # save only one model
-        dataloader_drop_last = config.dataloader_drop_last,
-        save_strategy = config.save_strategy              # the value must be same with eval_strategy
+        per_device_eval_batch_size = config.eval_batch,
+        gradient_accumulation_steps= config.trainer_args.gradient_accumulation_steps,
+        average_tokens_across_devices= config.trainer_args.average_tokens_across_devices,   
+        weight_decay = config.trainer_args.weight_decay,                # strength of weight decay
+        load_best_model_at_end = config.trainer_args.load_best_model_at_end,      # load the best model after the end of training
+        metric_for_best_model = config.trainer_args.metric_for_best_model,
+        greater_is_better = config.trainer_args.greater_is_better,
+        save_total_limit = config.trainer_args.save_total_limit,               # save only one model
+        dataloader_drop_last = config.trainer_args.dataloader_drop_last,
+        save_strategy = config.trainer_args.save_strategy,              # the value must be same with eval_strategy
+        logging_strategy = config.trainer_args.logging_strategy, 
+        remove_unused_columns= config.trainer_args.remove_unused_columns,  
+        report_to= "tensorboard"
     )
 
     logger.info("load model for fine tuning")
     model_config = AutoConfig.from_pretrained(
-        config.model_checkpoint,
+        config.base_model_checkpoint,
         _num_labels=len(unique_tags),
         id2label=id2tag,
         label2id=tag2id
     )
 
-    model = AutoModelForTokenClassification.from_pretrained(config.model_checkpoint, config=model_config)
+    model = AutoModelForTokenClassification.from_pretrained(config.base_model_checkpoint, config=model_config)
+
+    if config.lora_enable:
+        logger.info("Save base model, tokenizer and create peft model")
+        model = save_base_model_and_wrap_with_peft(model, tokenizer, config)
 
     # use focal loss in case of heavy data imbalance case.
     if config.focal_loss:
