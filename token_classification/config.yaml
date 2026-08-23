@@ -25,6 +25,7 @@ train:
     dataloader_drop_last: False
     logging_strategy : "epoch"
     remove_unused_columns: False 
+    report_to: "tensorboard"
   lora_config:
     init_lora_weights: "gaussian"
     r: 8
@@ -45,5 +46,5 @@ merge_model_lora:
   merge_model_save_path: "merged_models/indobert-base-p1-nergrit_classifier"
 
 predict:
-  model_checkpoint: "results/checkpoint-1670"                                   # change this value based on your saved model
+  model_checkpoint: "merged_models/indobert-base-p1-nergrit_classifier"         # change this value based on your saved model
   batch_size: 8                                                                 # size of batch for bulk prediction

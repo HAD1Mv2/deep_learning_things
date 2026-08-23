@@ -3,7 +3,7 @@ import os
 import evaluate 
 import pickle
 import torch
-from transformers import AutoModelForTokenClassification, AutoTokenizer, TrainingArguments, Trainer, DataCollatorForTokenClassification, AutoConfig
+from transformers import AutoModelForTokenClassification, AutoTokenizer, TrainingArguments, Trainer, DataCollatorForTokenClassification, AutoConfig, EarlyStoppingCallback
 from peft import LoraConfig, get_peft_model, TaskType
 from sklearn.model_selection import train_test_split
 from utils import read_wnut, instantiate_logger, load_config, calculate_class_weights
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         save_strategy = config.trainer_args.save_strategy,              # the value must be same with eval_strategy
         logging_strategy = config.trainer_args.logging_strategy, 
         remove_unused_columns= config.trainer_args.remove_unused_columns,  
-        report_to= "tensorboard"
+        report_to= config.trainer_args.report_to
     )
 
     logger.info("load model for fine tuning")
@@ -207,6 +207,9 @@ if __name__ == "__main__":
         logger.info("Save base model, tokenizer and create peft model")
         model = save_base_model_and_wrap_with_peft(model, tokenizer, config)
 
+    #set callback
+    es_callback = EarlyStoppingCallback(early_stopping_patience=3)
+
     # use focal loss in case of heavy data imbalance case.
     if config.focal_loss:
         trainer = FocalLossTrainer(
@@ -218,6 +221,7 @@ if __name__ == "__main__":
                                     compute_metrics=compute_metrics,     # custom metrics  
                                     processing_class = tokenizer,
                                     data_collator =  data_collator,
+                                    callbacks=[es_callback]
                                 )
     else:
         trainer = Trainer(
@@ -227,7 +231,8 @@ if __name__ == "__main__":
                             eval_dataset=val_dataset,            # evaluation dataset
                             compute_metrics=compute_metrics,     # custom metrics  
                             processing_class = tokenizer,
-                            data_collator =  data_collator
+                            data_collator =  data_collator,
+                            callbacks=[es_callback]
                         )
 
     # begin training
