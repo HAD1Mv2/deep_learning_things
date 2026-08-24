@@ -7,7 +7,7 @@ Dataset:
 Assuming the terminal workspace under `qa_machine` folder.
 
 Set config in `config.yaml`. 
-To conduct LoRA training, in `config.yaml` set `lora_enable=True` and fill lora donfiguration. to use the model you need to merge the base model tih the adapter weights.
+To conduct LoRA training, in `config.yaml` set `lora_enable=True` and fill lora configuration. to use the model you need to merge the base model tih the adapter weights.
 If not training with LoRA, the saved model is full params model, you can use it directly for test or prediction.
 
 - For training model, in terminal run:
@@ -16,7 +16,7 @@ If not training with LoRA, the saved model is full params model, you can use it 
 python train.py
 ```
 
-- Merge base model with the adapter
+- Merge base model with the LoRA adapter
 ```bash 
 python merge_model_adapter.py
 ```
@@ -26,7 +26,9 @@ python merge_model_adapter.py
 python test.py
 ```
 
-- Example script for prediction
+- `predict.py` is an example script for prediction 
 ```bash
-python predict.py --text "Your Sentence here"
+python predict.py -f <path/to/input_file.json> -o <path/to/output_file.jsonl>
 ```
+
+example of input file can be found in `example_io/example_input.json`
