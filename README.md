@@ -5,9 +5,9 @@ This repo is containing my experiences as data scientist related to deep learnin
 Available tasks:
 
 - NLP 
-  - Text classification
-  - Token classification
-  - Summarization 
-  - QA machine 
+  - [Text classification](sentence_classification) 
+  - [Token classification](token_classification)
+  - [Summarization](summarization)
+  - [QA machine](qa_machine)
 - Graph Neural Network
-  - Recommendation using GraphSAGE + edge features. (Link Regression)
+  - [Recommendation using GraphSAGE + edge features. (Link Regression)](graph_nn)
