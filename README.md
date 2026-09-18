@@ -9,3 +9,5 @@ Available tasks:
   - Token classification
   - Summarization 
   - QA machine 
+- Graph Neural Network
+  - Recommendation using GraphSAGE + edge features. (Link Regression)
