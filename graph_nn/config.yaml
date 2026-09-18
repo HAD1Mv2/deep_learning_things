@@ -1,0 +1,25 @@
+sampling_data:
+  num_user_sample: 10000  # sample data based on user
+  random_seed: 42
+
+train:
+  train_g_path: "data/hetero_graph/train_g.pt"
+  val_g_path: "data/hetero_graph/val_g.pt"
+  num_neighbors: [10, 20]
+  batch_size: 1024
+  epochs: 3
+  hidden_channels: 15
+  optim:
+    learning_rate: 1.0e-3
+    weight_decay: 1.0e-4
+  gnn_encoder_save_path: "models/gnn_encoder.pth"
+  predictor_save_path: "models/predictor.pth"
+  use_edge_attr: true
+
+test:
+  test_g_path: "data/hetero_graph/test_g.pt"
+  gnn_encoder_path: "models/gnn_encoder.pth"
+  predictor_path: "models/predictor.pth"
+  use_edge_attr: true
+  hidden_channels: 15
+  batch_size: 128

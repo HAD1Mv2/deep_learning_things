@@ -31,3 +31,7 @@ qa_machine/tensorboard_report
 qa_machine/test.ipynb
 qa_machine/__pycache__
 qa_machine/example_io/answers.jsonl
+graph_nn/data
+graph_nn/prototype.ipynb
+graph_nn/models
+graph_nn/__pycache__

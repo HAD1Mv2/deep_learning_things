@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="15.5in"
+   height="10in"
+   viewBox="0 0 393.7 254"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   sodipodi:docname="g_data_struct_illus.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.71535494"
+     inkscape:cx="730.40664"
+     inkscape:cy="337.59465"
+     inkscape:window-width="1853"
+     inkscape:window-height="1011"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1">
+    <rect
+       x="364.85385"
+       y="76.88491"
+       width="208.28821"
+       height="44.733038"
+       id="rect9" />
+    <rect
+       x="116.02632"
+       y="173.34052"
+       width="136.99493"
+       height="50.324668"
+       id="rect1" />
+    <rect
+       x="364.85385"
+       y="76.884911"
+       width="248.82753"
+       height="44.73304"
+       id="rect9-8" />
+    <rect
+       x="364.85385"
+       y="76.884911"
+       width="208.28821"
+       height="44.73304"
+       id="rect9-5" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.846478;stroke-dasharray:none"
+       id="rect10"
+       width="229.44275"
+       height="214.34392"
+       x="75.355438"
+       y="16.547211" />
+    <path
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:0.799999;stroke-dasharray:none"
+       d="M 140.17808,139.80822 225.9863,102.45205"
+       id="path6" />
+    <path
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:0.799999;stroke-dasharray:none"
+       d="m 141.28767,139.0685 82.84931,-0.73973"
+       id="path7" />
+    <path
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:0.799999;stroke-dasharray:none"
+       d="m 142.76712,190.84932 82.10959,18.49315"
+       id="path5" />
+    <path
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:0.799999;stroke-dasharray:none"
+       d="m 140.91781,139.0685 83.58903,34.39726"
+       id="path4" />
+    <path
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:0.799999;stroke-dasharray:none"
+       d="m 141.28767,89.506847 84.32876,48.821923"
+       id="path3" />
+    <path
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:0.8;stroke-dasharray:none"
+       d="M 141.65753,89.136986 224.87671,66.205478"
+       id="path2" />
+    <circle
+       style="fill:#d48c35;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-dasharray:none"
+       id="path1"
+       cx="141.65753"
+       cy="89.506851"
+       r="8.5068493" />
+    <text
+       xml:space="preserve"
+       transform="scale(0.26458333)"
+       id="text1"
+       style="font-size:29.3333px;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect1);fill:#d48c35;fill-opacity:1;stroke:#000000;stroke-width:1.13385828;stroke-dasharray:none" />
+    <text
+       xml:space="preserve"
+       style="font-size:7.7611px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="97.643837"
+       y="92.835617"
+       id="text2"><tspan
+         sodipodi:role="line"
+         id="tspan2"
+         style="fill:#000000;fill-opacity:1;stroke-width:0.3"
+         x="97.643837"
+         y="92.835617">User A</tspan></text>
+    <circle
+       style="fill:#d48c35;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-dasharray:none"
+       id="path1-3"
+       cx="141.59277"
+       cy="139.69583"
+       r="8.5068493" />
+    <text
+       xml:space="preserve"
+       style="font-size:7.7611px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="97.579079"
+       y="143.0246"
+       id="text2-5"><tspan
+         sodipodi:role="line"
+         id="tspan2-6"
+         style="fill:#000000;fill-opacity:1;stroke-width:0.3"
+         x="97.579079"
+         y="143.0246">User B</tspan></text>
+    <circle
+       style="fill:#d48c35;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-dasharray:none"
+       id="path1-7"
+       cx="142.71611"
+       cy="191.15387"
+       r="8.5068493" />
+    <text
+       xml:space="preserve"
+       style="font-size:7.7611px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="98.702431"
+       y="194.48262"
+       id="text2-0"><tspan
+         sodipodi:role="line"
+         id="tspan2-9"
+         style="fill:#000000;fill-opacity:1;stroke-width:0.3"
+         x="98.702431"
+         y="194.48262">User C</tspan></text>
+    <circle
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-dasharray:none"
+       id="path1-0"
+       cx="225.1402"
+       cy="66.454735"
+       r="8.5068493" />
+    <text
+       xml:space="preserve"
+       style="font-size:7.7611px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="243.63336"
+       y="69.783508"
+       id="text2-2"><tspan
+         sodipodi:role="line"
+         id="tspan2-3"
+         style="fill:#000000;fill-opacity:1;stroke-width:0.3"
+         x="243.63336"
+         y="69.783508">Anime 1</tspan></text>
+    <circle
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-dasharray:none"
+       id="path1-0-2"
+       cx="225.3127"
+       cy="102.53505"
+       r="8.5068493" />
+    <text
+       xml:space="preserve"
+       style="font-size:7.7611px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="243.80585"
+       y="105.86382"
+       id="text2-2-8"><tspan
+         sodipodi:role="line"
+         id="tspan2-3-9"
+         style="fill:#000000;fill-opacity:1;stroke-width:0.3"
+         x="243.80585"
+         y="105.86382">Anime 2</tspan></text>
+    <circle
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-dasharray:none"
+       id="path1-0-29"
+       cx="225.10776"
+       cy="138.24272"
+       r="8.5068493" />
+    <text
+       xml:space="preserve"
+       style="font-size:7.7611px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="243.60092"
+       y="141.5715"
+       id="text2-2-3"><tspan
+         sodipodi:role="line"
+         id="tspan2-3-1"
+         style="fill:#000000;fill-opacity:1;stroke-width:0.3"
+         x="243.60092"
+         y="141.5715">Anime 3</tspan></text>
+    <circle
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-dasharray:none"
+       id="path1-0-4"
+       cx="225.08839"
+       cy="173.76199"
+       r="8.5068493" />
+    <text
+       xml:space="preserve"
+       style="font-size:7.7611px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="243.58156"
+       y="177.09076"
+       id="text2-2-5"><tspan
+         sodipodi:role="line"
+         id="tspan2-3-0"
+         style="fill:#000000;fill-opacity:1;stroke-width:0.3"
+         x="243.58156"
+         y="177.09076">Anime 4</tspan></text>
+    <circle
+       style="fill:#35d477;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-dasharray:none"
+       id="path1-0-6"
+       cx="224.82657"
+       cy="209.3242"
+       r="8.5068493" />
+    <text
+       xml:space="preserve"
+       style="font-size:7.7611px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="243.31973"
+       y="212.65298"
+       id="text2-2-32"><tspan
+         sodipodi:role="line"
+         id="tspan2-3-06"
+         style="fill:#000000;fill-opacity:1;stroke-width:0.3"
+         x="243.31973"
+         y="212.65298">Anime 5</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:9.87778px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="160.15067"
+       y="78.0411"
+       id="text7"><tspan
+         sodipodi:role="line"
+         id="tspan7"
+         style="font-size:9.87778px;fill:#000000;fill-opacity:1;stroke-width:0.3;stroke-dasharray:none"
+         x="160.15067"
+         y="78.0411">7</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:9.87778px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="175.89313"
+       y="136.86801"
+       id="text7-4"><tspan
+         sodipodi:role="line"
+         id="tspan7-4"
+         style="font-size:9.87778px;fill:#000000;fill-opacity:1;stroke-width:0.3;stroke-dasharray:none"
+         x="175.89313"
+         y="136.86801">4</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:9.87778px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="161.16362"
+       y="99.288864"
+       id="text7-7"><tspan
+         sodipodi:role="line"
+         id="tspan7-6"
+         style="font-size:9.87778px;fill:#000000;fill-opacity:1;stroke-width:0.3;stroke-dasharray:none"
+         x="161.16362"
+         y="99.288864">9</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:9.87777px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="164.21918"
+       y="163.10959"
+       id="text8"><tspan
+         sodipodi:role="line"
+         id="tspan8"
+         style="stroke-width:0.3"
+         x="164.21918"
+         y="163.10959">8</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:9.87778px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="163.24983"
+       y="124.45054"
+       id="text7-74"><tspan
+         sodipodi:role="line"
+         id="tspan7-5"
+         style="font-size:9.87778px;fill:#000000;fill-opacity:1;stroke-width:0.3;stroke-dasharray:none"
+         x="163.24983"
+         y="124.45054">6</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:9.87778px;writing-mode:lr-tb;direction:ltr;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.3;stroke-dasharray:none"
+       x="165.99818"
+       y="192.22147"
+       id="text7-6"><tspan
+         sodipodi:role="line"
+         id="tspan7-8"
+         style="font-size:9.87778px;fill:#000000;fill-opacity:1;stroke-width:0.3;stroke-dasharray:none"
+         x="165.99818"
+         y="192.22147">7</tspan></text>
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,-12.945205,5.5479452)"
+       id="text9"
+       style="font-size:37.3333px;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect9);fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:1.13386;stroke-dasharray:none"><tspan
+         x="364.85352"
+         y="109.91599"
+         id="tspan1">User Node</tspan></text>
+    <text
+       xml:space="preserve"
+       transform="matrix(0.26458333,0,0,0.26458333,133.5531,4.8663444)"
+       id="text9-6"
+       style="font-size:37.3333px;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect9-8);display:inline;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:1.13386;stroke-dasharray:none"><tspan
+         x="364.85352"
+         y="109.91599"
+         id="tspan3">Anime Node</tspan></text>
+    <g
+       id="layer1-4"
+       transform="translate(80.539373,-1.0791462)">
+      <text
+         xml:space="preserve"
+         transform="matrix(0.26458333,0,0,0.26458333,-12.945205,5.5479452)"
+         id="text9-8"
+         style="font-size:37.3333px;writing-mode:lr-tb;direction:ltr;white-space:pre;shape-inside:url(#rect9-5);display:inline;fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:1.13386;stroke-dasharray:none"><tspan
+           x="364.85352"
+           y="109.91599"
+           id="tspan4">Ratings</tspan></text>
+    </g>
+  </g>
+</svg>
